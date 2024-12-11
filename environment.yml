@@ -1,0 +1,22 @@
+channels:
+  - conda-forge
+  - ilastik-forge
+dependencies:
+  - python=3.9
+  - h5py
+
+  # lazyflow
+  - numpy
+  - z5py
+  - vigra
+  - psutil
+  - h5py
+  - greenlet
+  - future
+  - ndstructs
+  - scikit-learn
+  - fastfilters
+
+  # tiktorch
+  - pytorch
+  - pytorch-3dunet # I forgot to add it under setup.py of tiktorch (I install tiktorch from local path pip install -e ./path/to/tiktorch)

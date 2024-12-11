@@ -1,2 +1,11 @@
-**/data/** # data to run the training
-**/model_resources/** # generated data for training specified from the .yaml
+data/ # data to run the training
+**/data
+
+**/model_resources # generated data for training specified from the .yaml
+model_resources/
+
+.vscode
+
+**egg-info
+
+__pycache__
