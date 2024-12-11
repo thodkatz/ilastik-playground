@@ -5,8 +5,11 @@ from tiktorch_playground.utils import expand_loaders_path
 
 
 class TrainingClient:
-    def __init__(self, host="localhost", port=5567):
+    def __init__(self, host="127.0.0.1", port=5567):
+        print("Connecting to server...")
+        print(f"Host: {host}, Port: {port}")
         self.channel = grpc.insecure_channel(f"{host}:{port}")
+        print(f"Channel: {self.channel}")
         self.stub = training_pb2_grpc.TrainingStub(self.channel)
 
     def init(self, yaml_path):
@@ -71,7 +74,7 @@ class TrainingClient:
 
 def main():
     parser = argparse.ArgumentParser(description="CLI for Training Server")
-    parser.add_argument("--host", type=str, default="localhost", help="Server hostname")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Server hostname")
     parser.add_argument("--port", type=int, default=5567, help="Server port")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 

@@ -11,7 +11,7 @@ model:
   final_sigmoid: true
   is_segmentation: true
 trainer:
-  checkpoint_dir: /home/thodkatz/repos/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/model_resources
+  checkpoint_dir: /home/katzalis/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/model_resources
   resume: null
   pre_trained: null
   validate_after_iters: 250
@@ -40,7 +40,7 @@ loaders:
   num_workers: 1
   train:
     file_paths:
-      - /home/thodkatz/repos/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/data/train_semantic
+      - /home/katzalis/kreshuklab/ilastik-playground/dsb_2018_data/train_semantic
 
     transformer:
       raw:
@@ -83,7 +83,7 @@ loaders:
           expand_dims: true
   val:
     file_paths:
-      - /home/thodkatz/repos/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/data/test_semantic
+      - /home/katzalis/kreshuklab/ilastik-playground/dsb_2018_data/val_semantic
 
     transformer:
       raw:
