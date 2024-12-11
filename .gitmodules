@@ -1,0 +1,3 @@
+[submodule "ilastik"]
+	path = ilastik
+	url = https://github.com/ilastik/ilastik

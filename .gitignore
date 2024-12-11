@@ -1,0 +1,2 @@
+**/data/** # data to run the training
+**/model_resources/** # generated data for training specified from the .yaml
