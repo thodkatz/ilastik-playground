@@ -3,9 +3,9 @@
 device: cpu
 model:
   name: UNet2D
-  in_channels: 1
+  in_channels: 4
   out_channels: 1
-  layer_order: bcr
+  layer_order: cr
   num_groups: 8
   f_maps: [32, 64, 128]
   final_sigmoid: true
@@ -14,8 +14,8 @@ trainer:
   checkpoint_dir: /home/thodkatz/repos/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/model_resources
   resume: null
   pre_trained: null
-  validate_after_iters: 250
-  log_after_iters: 250
+  validate_after_iters: 10
+  log_after_iters: 1
   max_num_epochs: 10000
   max_num_iterations: 150000
   eval_score_higher_is_better: True
@@ -37,10 +37,10 @@ lr_scheduler:
 loaders:
   dataset: DSB2018Dataset
   batch_size: 32
-  num_workers: 8
+  num_workers: 1
   train:
     file_paths:
-      - /home/thodkatz/repos/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/train_data
+      - /home/thodkatz/repos/kreshuklab/ilastik-playground/dsb_2018_data/train_semantic
 
     transformer:
       raw:
@@ -83,7 +83,7 @@ loaders:
           expand_dims: true
   val:
     file_paths:
-      - /home/thodkatz/repos/kreshuklab/ilastik-playground/tiktorch_playground/2d_unet_dsb_2018/test_data
+      - /home/thodkatz/repos/kreshuklab/ilastik-playground/dsb_2018_data/val_semantic
 
     transformer:
       raw:
