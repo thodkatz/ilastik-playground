@@ -2,7 +2,25 @@ import argparse
 import grpc
 from tiktorch.proto import training_pb2, training_pb2_grpc
 from tiktorch_playground.utils import expand_loaders_path
+from skimage.io import imread, imsave
+from tiktorch import converters
+import xarray as xr
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+def reorder_axes(
+    input_arr: np.ndarray, *, from_axes_tags: str, to_axes_tags: str
+) -> np.ndarray:
+    tagged_input = xr.DataArray(input_arr, dims=tuple(from_axes_tags))
+
+    axes_removed = set(from_axes_tags).difference(to_axes_tags)
+    axes_added = set(to_axes_tags).difference(from_axes_tags)
+
+    output = tagged_input.squeeze(tuple(axes_removed)).expand_dims(tuple(axes_added)).transpose(*tuple(to_axes_tags))
+    assert len(output.shape) == len(to_axes_tags)
+    return output.data.astype("float32")
 
 class TrainingClient:
     def __init__(self, host="127.0.0.1", port=5567):
@@ -40,6 +58,92 @@ class TrainingClient:
             print("Training resumed.")
         except grpc.RpcError as e:
             print(f"Error during Resume: {e}")
+            
+    def forward(self, session_id, image_file_path):
+        try:
+            # load image
+            image = imread(image_file_path)
+            print("image shape", image.shape)
+            print("min", image.min())
+            print("max", image.max())
+            reordered_image = reorder_axes(image, from_axes_tags="yx", to_axes_tags="bczyx")
+            pb_tensors = converters.numpy_to_pb_tensor("input", reordered_image)
+            
+            training_session_id = training_pb2.TrainingSessionId(id=session_id)
+            forward_request = training_pb2.PredictRequest(
+                sessionId=training_session_id, tensors=[pb_tensors]
+            )
+            server_response = self.stub.Predict(forward_request)
+            results = [converters.pb_tensor_to_numpy(t) for t in server_response.tensors]
+            results = [reorder_axes(r, from_axes_tags="bczyx", to_axes_tags="yx") for r in results]
+            assert len(results) == 1
+            
+            
+            result = results[0]
+            print("Received result shape", result.shape)
+            print("max", result.max())
+            print("min", result.min())
+            
+            # Create subplots for side-by-side images
+            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+            # Original image
+            im1 = axes[0].imshow(image, cmap="gray")
+            axes[0].set_title("Original Image")
+            axes[0].axis("off")  # Turn off axis labels
+
+            # Add a colorbar for the original image
+            divider1 = make_axes_locatable(axes[0])
+            cax1 = divider1.append_axes("right", size="5%", pad=0.05)
+            plt.colorbar(im1, cax=cax1)
+
+            # Predicted image
+            im2 = axes[1].imshow(result, cmap="gray")
+            axes[1].set_title("Predicted Image")
+            axes[1].axis("off")  # Turn off axis labels
+
+            # Add a colorbar for the predicted image
+            divider2 = make_axes_locatable(axes[1])
+            cax2 = divider2.append_axes("right", size="5%", pad=0.05)
+            plt.colorbar(im2, cax=cax2)
+
+            # Adjust layout
+            plt.tight_layout()
+            plt.show()
+        except grpc.RpcError as e:
+            print(f"Error during Forward: {e}")
+            
+    def forward_tensor(self, session_id, tensor_file_path):
+        try:
+            # load tensor
+            tensor = torch.load(tensor_file_path).detach().numpy()
+            print("tesnor shape", tensor.shape)
+            
+            #reordered_image = reorder_axes(image, from_axes_tags="yx", to_axes_tags="bczyx")
+            pb_tensors = converters.numpy_to_pb_tensor("input", tensor)
+            
+            training_session_id = training_pb2.TrainingSessionId(id=session_id)
+            forward_request = training_pb2.PredictRequest(
+                sessionId=training_session_id, tensors=[pb_tensors]
+            )
+            server_response = self.stub.Predict(forward_request)
+            results = [converters.pb_tensor_to_numpy(t) for t in server_response.tensors]
+            results = [reorder_axes(r, from_axes_tags="bczyx", to_axes_tags="yx") for r in results]
+            assert len(results) == 1
+            
+            result = results[0]
+            result = results[0]
+            print("max", result.max())
+            print("min", result.min())
+            
+            plt.imshow(result, cmap="gray")  
+            plt.colorbar()  # Optional: Display a color bar for intensity values
+            plt.title("Grayscale Image")
+            plt.axis("off")  # Optional: Turn off axis labels
+            plt.show()
+            print("Training forwarded.")
+        except grpc.RpcError as e:
+            print(f"Error during Forward: {e}")            
 
     def save(self, file_path, session_id):
         try:
@@ -117,6 +221,25 @@ def main():
     resume_parser.add_argument(
         "--session-id", type=str, required=True, help="Session ID to use"
     )
+    # Forward
+    forward_parser = subparsers.add_parser(
+        "forward", help="Forward the training state to the client"
+    )
+    forward_parser.add_argument(
+        "--session-id", type=str, required=True, help="Session ID to use",
+    )
+    forward_parser.add_argument(
+        "--image-file-path", type=str, required=True, help="file path to use")
+    
+    # Forward with preprocessed tensor
+    forward_parser = subparsers.add_parser(
+        "forward-tensor", help="Forward the training state to the client"
+    )
+    forward_parser.add_argument(
+        "--session-id", type=str, required=True, help="Session ID to use",
+    )
+    forward_parser.add_argument(
+        "--tensor-file-path", type=str, required=True, help="file path to use")    
 
     # Save
     save_parser = subparsers.add_parser("save", help="Save the training state")
@@ -170,6 +293,8 @@ def main():
         client.pause(args.session_id)
     elif args.command == "resume":
         client.resume(args.session_id)
+    elif args.command == "forward":
+        client.forward(args.session_id, args.image_file_path)
     elif args.command == "save":
         client.save(args.file_path, args.session_id)
     elif args.command == "export":
@@ -180,6 +305,8 @@ def main():
         client.close_session(args.session_id)
     elif args.command == "is_best":
         client.is_best(args.session_id)
+    elif args.command == "forward_tensor":
+        client.forward_tensor(args.session_id, args.tensor_file_path)
     else:
         parser.print_help()
 
