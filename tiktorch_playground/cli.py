@@ -1,8 +1,8 @@
 import argparse
 import grpc
-from tiktorch.proto import training_pb2, training_pb2_grpc
+from tiktorch.proto import training_pb2, training_pb2_grpc, utils_pb2
 from tiktorch_playground.utils import expand_loaders_path
-from skimage.io import imread, imsave
+from skimage.io import imread
 from tiktorch import converters
 import xarray as xr
 import numpy as np
@@ -40,21 +40,21 @@ class TrainingClient:
 
     def start(self, session_id):
         try:
-            self.stub.Start(training_pb2.TrainingSessionId(id=session_id))
+            self.stub.Start(utils_pb2.ModelSession(id=session_id))
             print("Training started.")
         except grpc.RpcError as e:
             print(f"Error during Start: {e}")
 
     def pause(self, session_id):
         try:
-            self.stub.Pause(training_pb2.TrainingSessionId(id=session_id))
+            self.stub.Pause(utils_pb2.ModelSession(id=session_id))
             print("Training paused.")
         except grpc.RpcError as e:
             print(f"Error during Pause: {e}")
 
     def resume(self, session_id):
         try:
-            self.stub.Resume(training_pb2.TrainingSessionId(id=session_id))
+            self.stub.Resume(utils_pb2.ModelSession(id=session_id))
             print("Training resumed.")
         except grpc.RpcError as e:
             print(f"Error during Resume: {e}")
@@ -69,9 +69,9 @@ class TrainingClient:
             reordered_image = reorder_axes(image, from_axes_tags="yx", to_axes_tags="bczyx")
             pb_tensors = converters.numpy_to_pb_tensor("input", reordered_image)
             
-            training_session_id = training_pb2.TrainingSessionId(id=session_id)
-            forward_request = training_pb2.PredictRequest(
-                sessionId=training_session_id, tensors=[pb_tensors]
+            training_session_id = utils_pb2.ModelSession(id=session_id)
+            forward_request = utils_pb2.PredictRequest(
+                modelSessionId=training_session_id, tensors=[pb_tensors]
             )
             server_response = self.stub.Predict(forward_request)
             results = [converters.pb_tensor_to_numpy(t) for t in server_response.tensors]
@@ -122,9 +122,9 @@ class TrainingClient:
             #reordered_image = reorder_axes(image, from_axes_tags="yx", to_axes_tags="bczyx")
             pb_tensors = converters.numpy_to_pb_tensor("input", tensor)
             
-            training_session_id = training_pb2.TrainingSessionId(id=session_id)
-            forward_request = training_pb2.PredictRequest(
-                sessionId=training_session_id, tensors=[pb_tensors]
+            training_session_id = utils_pb2.ModelSession(id=session_id)
+            forward_request = utils_pb2.PredictRequest(
+                modelSessionId=training_session_id, tensors=[pb_tensors]
             )
             server_response = self.stub.Predict(forward_request)
             results = [converters.pb_tensor_to_numpy(t) for t in server_response.tensors]
@@ -147,9 +147,9 @@ class TrainingClient:
 
     def save(self, file_path, session_id):
         try:
-            training_session_id = training_pb2.TrainingSessionId(id=session_id)
+            training_session_id = utils_pb2.ModelSession(id=session_id)
             save_request = training_pb2.SaveRequest(
-                sessionId=training_session_id, filePath=file_path
+                modelSessionId=training_session_id, filePath=file_path
             )
             self.stub.Save(save_request)
             print("Training saved.")
@@ -158,9 +158,9 @@ class TrainingClient:
 
     def export(self, file_path, session_id):
         try:
-            training_session_id = training_pb2.TrainingSessionId(id=session_id)
+            training_session_id = utils_pb2.ModelSession(id=session_id)
             export_request = training_pb2.ExportRequest(
-                sessionId=training_session_id, filePath=file_path
+                modelSessionId=training_session_id, filePath=file_path
             )
             self.stub.Export(export_request)
             print("Training exported.")
@@ -169,16 +169,16 @@ class TrainingClient:
 
     def is_best(self, session_id):
         try:
-            stream = self.stub.IsBestModel(training_pb2.TrainingSessionId(id=session_id))
-            for i, _ in enumerate(stream):
-                print(f"Training is best {i}.")
+            stream = self.stub.GetBestModelIdx(utils_pb2.ModelSession(id=session_id))
+            for i, res in enumerate(stream):
+                print(f"Training is best id {res.id}.")
         except grpc.RpcError as e:
             print(f"Error during Export: {e}")
 
     def get_status(self, session_id):
         try:
             response = self.stub.GetStatus(
-                training_pb2.TrainingSessionId(id=session_id)
+                utils_pb2.ModelSession(id=session_id)
             )
             print(f"Training status: {response.state}")
         except grpc.RpcError as e:
@@ -186,7 +186,7 @@ class TrainingClient:
 
     def close_session(self, session_id):
         try:
-            self.stub.CloseTrainerSession(training_pb2.TrainingSessionId(id=session_id))
+            self.stub.CloseTrainerSession(utils_pb2.ModelSession(id=session_id))
             print("Training session closed.")
         except grpc.RpcError as e:
             print(f"Error during CloseTrainerSession: {e}")
